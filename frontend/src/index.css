@@ -1,0 +1,376 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =========================================
+   GLOBAL / THEME
+========================================= */
+
+html {
+  color-scheme: light;
+  scroll-behavior: smooth;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-gray-50 text-gray-900;
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+html.dark body {
+  @apply bg-zinc-950 text-zinc-100;
+}
+
+/* =========================================
+   SELECTION
+========================================= */
+
+::selection {
+  @apply bg-red-200 text-red-900;
+}
+
+html.dark ::selection {
+  @apply bg-red-800 text-white;
+}
+
+/* =========================================
+   LINKS
+========================================= */
+
+a {
+  transition:
+    color 0.2s ease,
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    opacity 0.2s ease;
+}
+
+/* =========================================
+   PRIMARY BUTTON
+========================================= */
+
+.btn-primary {
+  @apply bg-red-600
+    hover:bg-red-700
+    active:bg-red-800
+    text-white
+    font-medium
+    px-4
+    py-2
+    rounded-lg
+    transition-colors
+    disabled:opacity-50
+    disabled:cursor-not-allowed;
+}
+
+html.dark .btn-primary {
+  @apply bg-red-600
+    hover:bg-red-500
+    active:bg-red-700;
+}
+
+/* =========================================
+   SECONDARY BUTTON
+========================================= */
+
+.btn-secondary {
+  @apply bg-white
+    border
+    border-gray-300
+    hover:bg-red-50
+    hover:border-red-300
+    hover:text-red-600
+    text-gray-800
+    font-medium
+    px-4
+    py-2
+    rounded-lg
+    transition-colors;
+}
+
+html.dark .btn-secondary {
+  @apply bg-zinc-900
+    border-zinc-700
+    text-zinc-100
+    hover:bg-red-950
+    hover:border-red-800
+    hover:text-red-300;
+}
+
+/* =========================================
+   FORM INPUTS
+========================================= */
+
+.input-field {
+  @apply w-full
+    bg-white
+    text-gray-900
+    border
+    border-gray-300
+    rounded-lg
+    px-3
+    py-2
+    placeholder:text-gray-400
+    focus:outline-none
+    focus:ring-2
+    focus:ring-red-500
+    focus:border-transparent
+    transition-colors;
+}
+
+html.dark .input-field {
+  @apply bg-zinc-900
+    text-zinc-100
+    border-zinc-700
+    placeholder:text-zinc-500
+    focus:ring-red-500;
+}
+
+/* =========================================
+   SELECT
+========================================= */
+
+select.input-field {
+  @apply cursor-pointer;
+}
+
+select.input-field:disabled {
+  @apply bg-gray-100
+    text-gray-400
+    cursor-not-allowed;
+}
+
+html.dark select.input-field:disabled {
+  @apply bg-zinc-800
+    text-zinc-500;
+}
+
+/* =========================================
+   CARDS
+========================================= */
+
+.card {
+  @apply bg-white
+    rounded-xl
+    shadow-sm
+    border
+    border-gray-100;
+
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+html.dark .card {
+  @apply bg-zinc-900
+    border-zinc-800;
+}
+
+/* Optional interactive card */
+.card-hover {
+  @apply hover:shadow-md
+    hover:border-red-200;
+}
+
+html.dark .card-hover {
+  @apply hover:border-red-900;
+}
+
+/* =========================================
+   RED ACCENT HELPERS
+========================================= */
+
+.text-accent {
+  @apply text-red-600;
+}
+
+html.dark .text-accent {
+  @apply text-red-400;
+}
+
+.bg-accent-soft {
+  @apply bg-red-50;
+}
+
+html.dark .bg-accent-soft {
+  @apply bg-red-950;
+}
+
+.border-accent {
+  @apply border-red-200;
+}
+
+html.dark .border-accent {
+  @apply border-red-900;
+}
+
+/* =========================================
+   BADGES
+========================================= */
+
+.badge-red {
+  @apply inline-flex
+    items-center
+    rounded-full
+    bg-red-100
+    text-red-700
+    text-xs
+    font-semibold
+    px-2.5
+    py-1;
+}
+
+html.dark .badge-red {
+  @apply bg-red-950
+    text-red-300
+    border
+    border-red-900;
+}
+
+/* =========================================
+   TABLES
+========================================= */
+
+table {
+  border-collapse: collapse;
+}
+
+.offer-table {
+  @apply w-full
+    bg-white
+    text-gray-900;
+}
+
+html.dark .offer-table {
+  @apply bg-zinc-900
+    text-zinc-100;
+}
+
+.offer-table thead {
+  @apply bg-red-50
+    text-gray-700;
+}
+
+html.dark .offer-table thead {
+  @apply bg-red-950
+    text-zinc-200;
+}
+
+.offer-table tbody tr {
+  @apply border-t
+    border-gray-100
+    transition-colors;
+}
+
+.offer-table tbody tr:hover {
+  @apply bg-red-50;
+}
+
+html.dark .offer-table tbody tr {
+  @apply border-zinc-800;
+}
+
+html.dark .offer-table tbody tr:hover {
+  @apply bg-red-950;
+}
+
+/* =========================================
+   SCROLLBAR
+========================================= */
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-100;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-red-400;
+}
+
+html.dark ::-webkit-scrollbar-track {
+  @apply bg-zinc-950;
+}
+
+html.dark ::-webkit-scrollbar-thumb {
+  @apply bg-zinc-700;
+}
+
+html.dark ::-webkit-scrollbar-thumb:hover {
+  @apply bg-red-600;
+}
+
+/* =========================================
+   FOCUS / ACCESSIBILITY
+========================================= */
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  @apply outline-none
+    ring-2
+    ring-red-500
+    ring-offset-2;
+}
+
+html.dark button:focus-visible,
+html.dark a:focus-visible,
+html.dark input:focus-visible,
+html.dark select:focus-visible,
+html.dark textarea:focus-visible {
+  @apply ring-offset-zinc-950;
+}
+
+/* =========================================
+   RESPONSIVE / MOBILE
+========================================= */
+
+img {
+  max-width: 100%;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Prevent long product names / URLs from
+   breaking the mobile layout */
+.break-safe {
+  overflow-wrap: anywhere;
+}
+
+/* =========================================
+   RED GRADIENT
+========================================= */
+
+.red-gradient {
+  @apply bg-gradient-to-r
+    from-red-600
+    to-red-700;
+}
+
+html.dark .red-gradient {
+  @apply from-red-950
+    to-red-800;
+}
