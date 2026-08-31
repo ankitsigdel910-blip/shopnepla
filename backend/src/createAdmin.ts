@@ -1,43 +1,195 @@
+import dns from 'dns';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
+
 import User from './models/User';
+
+// ============================================================
+// ENVIRONMENT
+// ============================================================
 
 dotenv.config();
 
+// ============================================================
+// DNS
+// ============================================================
+// Required on your current network because Node's default
+// DNS resolver cannot resolve MongoDB Atlas SRV records.
+
+dns.setServers([
+  '1.1.1.1',
+  '1.0.0.1',
+]);
+
+// ============================================================
+// CREATE / UPDATE ADMIN
+// ============================================================
+
 const createAdmin = async () => {
   try {
-    if (!process.env.MONGODB_URI) {
-      throw new Error('MONGODB_URI is missing');
+    const mongoUri =
+      process.env.MONGODB_URI;
+
+    const email =
+      process.env.SEED_ADMIN_EMAIL;
+
+    const password =
+      process.env.SEED_ADMIN_PASSWORD;
+
+    // ========================================================
+    // VALIDATION
+    // ========================================================
+
+    if (!mongoUri) {
+      throw new Error(
+        'MONGODB_URI is missing'
+      );
     }
 
-    await mongoose.connect(process.env.MONGODB_URI);
+    if (!email) {
+      throw new Error(
+        'SEED_ADMIN_EMAIL is missing'
+      );
+    }
 
-    const email = 'ankitsigdel910@gmail.com';
+    if (!password) {
+      throw new Error(
+        'SEED_ADMIN_PASSWORD is missing'
+      );
+    }
 
-    // Choose your own strong temporary password
-    const newPassword = 'ChangeMe@12345!';
+    if (password.length < 12) {
+      throw new Error(
+        'SEED_ADMIN_PASSWORD must be at least 12 characters'
+      );
+    }
 
-    const user = await User.findOne({ email });
+    // ========================================================
+    // CONNECT TO ATLAS
+    // ========================================================
+
+    console.log(
+      'Connecting to MongoDB...'
+    );
+
+    await mongoose.connect(
+      mongoUri
+    );
+
+    console.log(
+      `MongoDB connected: ${mongoose.connection.name}`
+    );
+
+    // ========================================================
+    // FIND USER
+    // ========================================================
+
+    const normalizedEmail =
+      email
+        .trim()
+        .toLowerCase();
+
+    const user =
+      await User.findOne({
+        email:
+          normalizedEmail,
+      });
 
     if (!user) {
-      console.log('User not found. Register the account first.');
+      console.log(
+        `User not found: ${normalizedEmail}`
+      );
+
+      console.log(
+        'Register this account first, then run the script again.'
+      );
+
       return;
     }
 
-    user.role = 'admin';
-    user.isActive = true;
-    user.password = newPassword;
+    // ========================================================
+    // MAKE ADMIN
+    // ========================================================
+
+    user.role =
+      'admin';
+
+    user.isActive =
+      true;
+
+    /*
+     * User.ts will automatically hash
+     * this password using bcrypt before
+     * saving.
+     */
+    user.password =
+      password;
 
     await user.save();
 
-    console.log('Admin account updated successfully');
-    console.log(`Email: ${email}`);
-    console.log('Password was reset to the value in createAdmin.ts');
+    // ========================================================
+    // SUCCESS
+    // ========================================================
+
+    console.log('');
+    console.log(
+      '================================'
+    );
+
+    console.log(
+      'ADMIN ACCOUNT UPDATED'
+    );
+
+    console.log(
+      '================================'
+    );
+
+    console.log(
+      `Email: ${normalizedEmail}`
+    );
+
+    console.log(
+      'Role: admin'
+    );
+
+    console.log(
+      'Active: true'
+    );
+
+    console.log(
+      'Password: reset successfully'
+    );
+
+    console.log(
+      '================================'
+    );
   } catch (error) {
-    console.error(error);
+    console.error(
+      'Admin update failed:',
+      error instanceof Error
+        ? error.message
+        : error
+    );
   } finally {
-    await mongoose.disconnect();
+    // ========================================================
+    // DISCONNECT
+    // ========================================================
+
+    if (
+      mongoose.connection
+        .readyState !== 0
+    ) {
+      await mongoose.disconnect();
+
+      console.log(
+        'MongoDB disconnected.'
+      );
+    }
   }
 };
+
+// ============================================================
+// RUN
+// ============================================================
 
 createAdmin();
