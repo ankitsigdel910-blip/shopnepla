@@ -31,3 +31,6 @@ Thumbs.db
 
 # Private user profile pictures
 backend/uploads/avatars/
+
+# Local MongoDB backup
+mongo-backup/
