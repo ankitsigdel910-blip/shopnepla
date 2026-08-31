@@ -26,5 +26,8 @@ npm-debug.log*
 .DS_Store
 Thumbs.db
 
-# Do not publish customer profile photos
+# TypeScript build cache
+*.tsbuildinfo
+
+# Private user profile pictures
 backend/uploads/avatars/
