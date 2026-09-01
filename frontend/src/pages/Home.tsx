@@ -319,7 +319,7 @@ const Home = () => {
             </div>
 
             <div className="text-xs text-gray-500 dark:text-zinc-400">
-              eSewa, Khalti and COD
+              eSewa, and COD
             </div>
           </div>
         </div>

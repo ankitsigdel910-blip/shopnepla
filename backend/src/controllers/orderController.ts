@@ -53,7 +53,6 @@ export const createOrder = asyncHandler(
 
     const allowedPaymentMethods = [
       'esewa',
-      'khalti',
       'cod',
     ];
 

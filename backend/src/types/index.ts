@@ -3,7 +3,7 @@ import { Types } from 'mongoose';
 
 export type UserRole = 'customer' | 'admin';
 
-export type PaymentMethod = 'esewa' | 'khalti' | 'cod';
+export type PaymentMethod = 'esewa'  | 'cod';
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded';
 export type OrderStatus =
   | 'pending'
