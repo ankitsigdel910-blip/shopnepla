@@ -1,22 +1,26 @@
 import {
+  FormEvent,
   useEffect,
   useState,
 } from 'react';
 
 import {
   Link,
+  useLocation,
   useNavigate,
 } from 'react-router-dom';
 
 import {
-  Search,
   Heart,
-  ShoppingCart,
-  User,
+  Home,
   Menu,
-  X,
   Moon,
+  Search,
+  ShoppingBag,
+  ShoppingCart,
   Sun,
+  User,
+  X,
 } from 'lucide-react';
 
 import {
@@ -36,48 +40,51 @@ import {
   resetWishlist,
 } from '../features/wishlistSlice';
 
-// ============================================================
-// NAVBAR
-// ============================================================
+/* ============================================================
+   NAVBAR
+============================================================ */
 
 const Navbar = () => {
   const [
     query,
     setQuery,
-  ] =
-    useState('');
+  ] = useState('');
 
   const [
     mobileOpen,
     setMobileOpen,
-  ] =
-    useState(false);
-
-  // ==========================================================
-  // DARK MODE
-  // ==========================================================
+  ] = useState(false);
 
   const [
     darkMode,
     setDarkMode,
-  ] =
-    useState(() => {
-      return (
-        localStorage.getItem(
-          'theme'
-        ) === 'dark'
-      );
-    });
+  ] = useState(() => {
+    if (
+      typeof window ===
+      'undefined'
+    ) {
+      return false;
+    }
+
+    return (
+      localStorage.getItem(
+        'theme'
+      ) === 'dark'
+    );
+  });
 
   const navigate =
     useNavigate();
 
+  const location =
+    useLocation();
+
   const dispatch =
     useAppDispatch();
 
-  // ==========================================================
-  // USER
-  // ==========================================================
+  /* ==========================================================
+     USER
+  ========================================================== */
 
   const { user } =
     useAppSelector(
@@ -85,9 +92,9 @@ const Navbar = () => {
         state.auth
     );
 
-  // ==========================================================
-  // CART COUNT
-  // ==========================================================
+  /* ==========================================================
+     COUNTS
+  ========================================================== */
 
   const cartCount =
     useAppSelector(
@@ -98,15 +105,13 @@ const Navbar = () => {
             item
           ) =>
             total +
-            item.quantity,
-
+            Number(
+              item.quantity ||
+                0
+            ),
           0
         )
     );
-
-  // ==========================================================
-  // WISHLIST COUNT
-  // ==========================================================
 
   const wishlistCount =
     useAppSelector(
@@ -115,88 +120,98 @@ const Navbar = () => {
           .products.length
     );
 
-  // ==========================================================
-  // APPLY THEME
-  // ==========================================================
+  /* ==========================================================
+     THEME
+  ========================================================== */
 
   useEffect(() => {
     const root =
       document.documentElement;
 
-    if (darkMode) {
-      root.classList.add(
-        'dark'
-      );
+    root.classList.toggle(
+      'dark',
+      darkMode
+    );
 
-      localStorage.setItem(
-        'theme',
-        'dark'
-      );
-    } else {
-      root.classList.remove(
-        'dark'
-      );
-
-      localStorage.setItem(
-        'theme',
-        'light'
-      );
-    }
+    localStorage.setItem(
+      'theme',
+      darkMode
+        ? 'dark'
+        : 'light'
+    );
   }, [darkMode]);
 
-  // ==========================================================
-  // SEARCH
-  // ==========================================================
+  /* ==========================================================
+     CLOSE MENU AFTER NAVIGATION
+  ========================================================== */
+
+  useEffect(() => {
+    setMobileOpen(
+      false
+    );
+  }, [
+    location.pathname,
+    location.search,
+  ]);
+
+  /* ==========================================================
+     SEARCH
+  ========================================================== */
 
   const handleSearch = (
-    event: React.FormEvent
+    event: FormEvent<HTMLFormElement>
   ) => {
     event.preventDefault();
 
-    const trimmedQuery =
+    const trimmed =
       query.trim();
 
     navigate(
-      trimmedQuery
+      trimmed
         ? `/shop?search=${encodeURIComponent(
-            trimmedQuery
+            trimmed
           )}`
         : '/shop'
     );
 
-    setMobileOpen(
-      false
-    );
+    setMobileOpen(false);
   };
 
-  // ==========================================================
-  // LOGOUT
-  // ==========================================================
+  /* ==========================================================
+     LOGOUT
+  ========================================================== */
 
   const handleLogout =
     async () => {
-      await dispatch(
-        logout()
-      );
+      try {
+        await dispatch(
+          logout()
+        );
+      } catch (error) {
+        console.error(
+          'Logout failed:',
+          error
+        );
+      } finally {
+        dispatch(
+          resetCart()
+        );
 
-      dispatch(
-        resetCart()
-      );
+        dispatch(
+          resetWishlist()
+        );
 
-      dispatch(
-        resetWishlist()
-      );
+        setMobileOpen(
+          false
+        );
 
-      setMobileOpen(
-        false
-      );
-
-      navigate('/');
+        navigate('/');
+      }
     };
 
-  // ==========================================================
-  // NAVIGATION LINKS
-  // ==========================================================
+  /* ==========================================================
+     NAVIGATION
+  ========================================================== */
 
   const navLinks = [
     {
@@ -215,400 +230,80 @@ const Navbar = () => {
     },
   ];
 
-  // ==========================================================
-  // UI
-  // ==========================================================
+  const isActive = (
+    path: string
+  ) => {
+    if (path === '/') {
+      return (
+        location.pathname ===
+        '/'
+      );
+    }
+
+    return location.pathname.startsWith(
+      path
+    );
+  };
 
   return (
-    <header className="sticky top-0 z-40 bg-red-600 dark:bg-red-950 text-white shadow-md">
-
-      <div className="max-w-7xl mx-auto px-4">
-
-        <div className="h-16 flex items-center justify-between gap-4">
-
-          {/* =================================================
-              LOGO
-          ================================================== */}
-
-          <Link
-            to="/"
-            className="text-xl sm:text-2xl font-black tracking-tight shrink-0"
-          >
-            Shop
-
-            <span className="text-red-100">
-              Nepal
-            </span>
-          </Link>
-
-          {/* =================================================
-              DESKTOP NAVIGATION
-          ================================================== */}
-
-          <nav className="hidden lg:flex items-center gap-6 text-sm font-semibold">
-
-            {navLinks.map(
-              (
-                link
-              ) => (
-                <Link
-                  key={
-                    link.label
-                  }
-                  to={
-                    link.to
-                  }
-                  className="text-white/90 hover:text-white transition-colors"
-                >
-                  {
-                    link.label
-                  }
-                </Link>
-              )
-            )}
-
-          </nav>
-
-          {/* =================================================
-              DESKTOP SEARCH
-          ================================================== */}
-
-          <form
-            onSubmit={
-              handleSearch
-            }
-            className="hidden md:flex flex-1 max-w-xl relative"
-          >
-
-            <input
-              value={
-                query
-              }
-              onChange={(
-                event
-              ) =>
-                setQuery(
-                  event.target
-                    .value
-                )
-              }
-              placeholder="Search products..."
-              className="
-                w-full
-                h-11
-                rounded-xl
-                border-0
-                bg-white
-                text-gray-900
-                dark:bg-zinc-900
-                dark:text-white
-                dark:placeholder:text-zinc-400
-                pl-4
-                pr-14
-                outline-none
-                ring-2
-                ring-transparent
-                focus:ring-red-200
-                transition
-              "
-            />
-
-            <button
-              type="submit"
-              aria-label="Search"
-              className="
-                absolute
-                right-1.5
-                top-1.5
-                w-11
-                h-8
-                rounded-lg
-                bg-red-100
-                hover:bg-red-200
-                dark:bg-red-900
-                dark:hover:bg-red-800
-                text-red-600
-                dark:text-red-200
-                flex
-                items-center
-                justify-center
-                transition-colors
-              "
-            >
-              <Search
-                size={
-                  19
-                }
-              />
-            </button>
-
-          </form>
-
-          {/* =================================================
-              ACTIONS
-          ================================================== */}
-
-          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-
-            {/* ===============================================
-                THEME
-            ================================================ */}
-
-            <button
-              type="button"
-              onClick={() =>
-                setDarkMode(
-                  (
-                    current
-                  ) =>
-                    !current
-                )
-              }
-              className="p-2 rounded-lg hover:bg-white/10 transition"
-              aria-label={
-                darkMode
-                  ? 'Switch to light mode'
-                  : 'Switch to dark mode'
-              }
-              title={
-                darkMode
-                  ? 'Light mode'
-                  : 'Dark mode'
-              }
-            >
-              {darkMode ? (
-                <Sun
-                  size={
-                    20
-                  }
-                />
-              ) : (
-                <Moon
-                  size={
-                    20
-                  }
-                />
-              )}
-            </button>
-
-            {/* ===============================================
-                WISHLIST
-            ================================================ */}
-
-            <Link
-              to="/wishlist"
-              className="relative p-2 rounded-lg hover:bg-white/10 transition"
-              aria-label="Wishlist"
-            >
-              <Heart
-                size={
-                  20
-                }
-              />
-
-              {wishlistCount >
-                0 && (
-                <span className="absolute -top-1 -right-1 bg-white text-red-600 font-bold text-[10px] rounded-full min-w-4 h-4 px-1 flex items-center justify-center">
-                  {
-                    wishlistCount
-                  }
-                </span>
-              )}
-            </Link>
-
-            {/* ===============================================
-                CART
-            ================================================ */}
-
-            <Link
-              to="/cart"
-              className="relative p-2 rounded-lg hover:bg-white/10 transition"
-              aria-label="Cart"
-            >
-              <ShoppingCart
-                size={
-                  21
-                }
-              />
-
-              {cartCount >
-                0 && (
-                <span className="absolute -top-1 -right-1 bg-white text-red-600 font-bold text-[10px] rounded-full min-w-4 h-4 px-1 flex items-center justify-center">
-                  {
-                    cartCount
-                  }
-                </span>
-              )}
-            </Link>
-
-            {/* ===============================================
-                LOGGED IN USER - DESKTOP
-            ================================================ */}
-
-            {user ? (
-              <div className="hidden md:flex items-center gap-2">
-
-                {/* ===========================================
-                    PROFILE AVATAR
-                ============================================ */}
-
-                <Link
-                  to="/dashboard/profile"
-                  className="
-                    flex
-                    items-center
-                    justify-center
-                    rounded-full
-                    hover:ring-2
-                    hover:ring-white/60
-                    transition
-                  "
-                  aria-label="My Profile"
-                  title={
-                    user.name ||
-                    'My Profile'
-                  }
-                >
-
-                  {user.avatar ? (
-                    <img
-                      src={
-                        user.avatar
-                      }
-                      alt={
-                        user.name ||
-                        'Profile'
-                      }
-                      className="
-                        w-9
-                        h-9
-                        rounded-full
-                        object-cover
-                        border-2
-                        border-white/80
-                        shadow-sm
-                        bg-white
-                      "
-                    />
-                  ) : (
-                    <div
-                      className="
-                        w-9
-                        h-9
-                        rounded-full
-                        flex
-                        items-center
-                        justify-center
-                        hover:bg-white/10
-                      "
-                    >
-                      <User
-                        size={
-                          20
-                        }
-                      />
-                    </div>
-                  )}
-
-                </Link>
-
-                {/* ===========================================
-                    LOGOUT
-                ============================================ */}
-
-                <button
-                  type="button"
-                  onClick={
-                    handleLogout
-                  }
-                  className="text-sm font-medium px-2 py-2 rounded-lg hover:bg-white/10 transition"
-                >
-                  Logout
-                </button>
-
-              </div>
-            ) : (
-              <Link
-                to="/login"
-                className="
-                  hidden
-                  md:inline-flex
-                  bg-white
-                  text-red-600
-                  hover:bg-red-50
-                  font-semibold
-                  px-4
-                  py-2
-                  rounded-lg
-                  transition
-                "
-              >
-                Login
-              </Link>
-            )}
-
-            {/* ===============================================
-                MOBILE MENU BUTTON
-            ================================================ */}
-
-            <button
-              type="button"
-              className="lg:hidden p-2 rounded-lg hover:bg-white/10"
-              onClick={() =>
-                setMobileOpen(
-                  (
-                    current
-                  ) =>
-                    !current
-                )
-              }
-              aria-label="Menu"
-            >
-              {mobileOpen ? (
-                <X
-                  size={
-                    22
-                  }
-                />
-              ) : (
-                <Menu
-                  size={
-                    22
-                  }
-                />
-              )}
-            </button>
-
-          </div>
-
-        </div>
-
-      </div>
-
+    <>
       {/* =====================================================
-          MOBILE PANEL
+          HEADER
       ====================================================== */}
 
-      {mobileOpen && (
-        <div className="lg:hidden border-t border-red-500/50 dark:border-red-900 bg-red-600 dark:bg-red-950">
+      <header className="sticky top-0 z-40 bg-red-600 text-white shadow-md dark:bg-red-950">
+        <div className="mx-auto max-w-7xl px-3 sm:px-4">
+          <div className="flex h-14 items-center justify-between gap-2 sm:h-16 sm:gap-4">
+            {/* LOGO */}
 
-          <div className="max-w-7xl mx-auto px-4 py-4 space-y-4">
+            <Link
+              to="/"
+              className="shrink-0 text-lg font-black tracking-tight sm:text-2xl"
+              aria-label="ShopNepal home"
+            >
+              Shop
+              <span className="text-red-100">
+                Nepal
+              </span>
+            </Link>
 
-            {/* ===============================================
-                MOBILE SEARCH
-            ================================================ */}
+            {/* DESKTOP LINKS */}
+
+            <nav
+              className="hidden items-center gap-6 text-sm font-semibold lg:flex"
+              aria-label="Main navigation"
+            >
+              {navLinks.map(
+                (link) => (
+                  <Link
+                    key={
+                      link.label
+                    }
+                    to={
+                      link.to
+                    }
+                    className="text-white/90 transition-colors hover:text-white"
+                  >
+                    {
+                      link.label
+                    }
+                  </Link>
+                )
+              )}
+            </nav>
+
+            {/* DESKTOP SEARCH */}
 
             <form
               onSubmit={
                 handleSearch
               }
-              className="relative md:hidden"
+              className="relative hidden max-w-xl flex-1 md:block"
+              role="search"
             >
-
               <input
-                value={
-                  query
-                }
+                type="search"
+                value={query}
                 onChange={(
                   event
                 ) =>
@@ -618,107 +313,113 @@ const Navbar = () => {
                   )
                 }
                 placeholder="Search products..."
-                className="
-                  w-full
-                  h-11
-                  rounded-xl
-                  border-0
-                  bg-white
-                  text-gray-900
-                  dark:bg-zinc-900
-                  dark:text-white
-                  dark:placeholder:text-zinc-400
-                  pl-4
-                  pr-14
-                  outline-none
-                "
+                aria-label="Search products"
+                className="h-11 w-full rounded-xl border-0 bg-white pl-4 pr-14 text-gray-900 outline-none ring-2 ring-transparent transition focus:ring-red-200 dark:bg-zinc-900 dark:text-white dark:placeholder:text-zinc-400"
               />
 
               <button
                 type="submit"
                 aria-label="Search"
-                className="
-                  absolute
-                  right-1.5
-                  top-1.5
-                  w-11
-                  h-8
-                  rounded-lg
-                  bg-red-100
-                  dark:bg-red-900
-                  text-red-600
-                  dark:text-red-200
-                  flex
-                  items-center
-                  justify-center
-                "
+                className="absolute right-1.5 top-1.5 flex h-8 w-11 items-center justify-center rounded-lg bg-red-100 text-red-600 transition-colors hover:bg-red-200 dark:bg-red-900 dark:text-red-200 dark:hover:bg-red-800"
               >
                 <Search
-                  size={
-                    19
-                  }
+                  size={19}
                 />
               </button>
-
             </form>
 
-            {/* ===============================================
-                MOBILE LINKS
-            ================================================ */}
+            {/* ACTIONS */}
 
-            <nav className="flex flex-col text-sm font-semibold">
+            <div className="flex shrink-0 items-center gap-0.5 sm:gap-2">
+              {/* THEME */}
 
-              {navLinks.map(
-                (
-                  link
-                ) => (
-                  <Link
-                    key={
-                      link.label
-                    }
-                    to={
-                      link.to
-                    }
-                    onClick={() =>
-                      setMobileOpen(
-                        false
-                      )
-                    }
-                    className="py-2.5 border-b border-white/10"
-                  >
-                    {
-                      link.label
-                    }
-                  </Link>
-                )
-              )}
+              <button
+                type="button"
+                onClick={() =>
+                  setDarkMode(
+                    (
+                      current
+                    ) =>
+                      !current
+                  )
+                }
+                className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-white/10"
+                aria-label={
+                  darkMode
+                    ? 'Switch to light mode'
+                    : 'Switch to dark mode'
+                }
+              >
+                {darkMode ? (
+                  <Sun
+                    size={18}
+                  />
+                ) : (
+                  <Moon
+                    size={18}
+                  />
+                )}
+              </button>
 
-              {/* =============================================
-                  MOBILE USER
-              ============================================== */}
+              {/* WISHLIST TOP:
+                  hide only on very small mobile,
+                  because bottom nav already has it */}
+
+              <Link
+                to="/wishlist"
+                className="relative hidden h-9 w-9 items-center justify-center rounded-full transition hover:bg-white/10 sm:flex"
+                aria-label="Wishlist"
+              >
+                <Heart
+                  size={20}
+                />
+
+                {wishlistCount >
+                  0 && (
+                  <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-white px-1 text-[9px] font-bold text-red-600">
+                    {wishlistCount >
+                    99
+                      ? '99+'
+                      : wishlistCount}
+                  </span>
+                )}
+              </Link>
+
+              {/* CART TOP */}
+
+              <Link
+                to="/cart"
+                className="relative hidden h-9 w-9 items-center justify-center rounded-full transition hover:bg-white/10 sm:flex"
+                aria-label="Cart"
+              >
+                <ShoppingCart
+                  size={21}
+                />
+
+                {cartCount >
+                  0 && (
+                  <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-white px-1 text-[9px] font-bold text-red-600">
+                    {cartCount >
+                    99
+                      ? '99+'
+                      : cartCount}
+                  </span>
+                )}
+              </Link>
+
+              {/* DESKTOP USER */}
 
               {user ? (
-                <>
-
-                  {/* PROFILE */}
-
+                <div className="hidden items-center gap-2 md:flex">
                   <Link
                     to="/dashboard/profile"
-                    onClick={() =>
-                      setMobileOpen(
-                        false
-                      )
+                    className="flex items-center justify-center rounded-full transition hover:ring-2 hover:ring-white/60"
+                    aria-label="My Profile"
+                    title={
+                      user.name ||
+                      'My Profile'
                     }
-                    className="
-                      py-3
-                      border-b
-                      border-white/10
-                      flex
-                      items-center
-                      gap-3
-                    "
                   >
-
                     {user.avatar ? (
                       <img
                         src={
@@ -728,89 +429,352 @@ const Navbar = () => {
                           user.name ||
                           'Profile'
                         }
-                        className="
-                          w-9
-                          h-9
-                          rounded-full
-                          object-cover
-                          border-2
-                          border-white/80
-                          bg-white
-                        "
+                        className="h-9 w-9 rounded-full border-2 border-white/80 bg-white object-cover shadow-sm"
                       />
                     ) : (
-                      <div
-                        className="
-                          w-9
-                          h-9
-                          rounded-full
-                          bg-white/10
-                          flex
-                          items-center
-                          justify-center
-                        "
-                      >
+                      <div className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-white/10">
                         <User
-                          size={
-                            19
-                          }
+                          size={20}
                         />
                       </div>
                     )}
-
-                    <div className="flex flex-col">
-
-                      <span>
-                        My Profile
-                      </span>
-
-                      {user.name && (
-                        <span className="text-xs font-normal text-white/70">
-                          {
-                            user.name
-                          }
-                        </span>
-                      )}
-
-                    </div>
-
                   </Link>
-
-                  {/* LOGOUT */}
 
                   <button
                     type="button"
                     onClick={
                       handleLogout
                     }
-                    className="text-left py-2.5 text-red-100"
+                    className="rounded-lg px-2 py-2 text-sm font-medium transition hover:bg-white/10"
                   >
                     Logout
                   </button>
-
-                </>
+                </div>
               ) : (
                 <Link
                   to="/login"
-                  onClick={() =>
-                    setMobileOpen(
-                      false
-                    )
-                  }
-                  className="py-2.5"
+                  className="hidden rounded-lg bg-white px-4 py-2 font-semibold text-red-600 transition hover:bg-red-50 md:inline-flex"
                 >
-                  Login / Register
+                  Login
                 </Link>
               )}
 
-            </nav>
+              {/* MOBILE MENU */}
 
+              <button
+                type="button"
+                onClick={() =>
+                  setMobileOpen(
+                    (
+                      current
+                    ) =>
+                      !current
+                  )
+                }
+                className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-white/10 lg:hidden"
+                aria-label={
+                  mobileOpen
+                    ? 'Close menu'
+                    : 'Open menu'
+                }
+                aria-expanded={
+                  mobileOpen
+                }
+                aria-controls="mobile-menu"
+              >
+                {mobileOpen ? (
+                  <X
+                    size={20}
+                  />
+                ) : (
+                  <Menu
+                    size={20}
+                  />
+                )}
+              </button>
+            </div>
           </div>
-
         </div>
-      )}
 
-    </header>
+        {/* ===================================================
+            ALWAYS-VISIBLE MOBILE SEARCH
+        ==================================================== */}
+
+        <div className="border-t border-white/10 px-3 pb-3 pt-2 md:hidden">
+          <form
+            onSubmit={
+              handleSearch
+            }
+            className="relative mx-auto max-w-7xl"
+            role="search"
+          >
+            <Search
+              size={17}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+            />
+
+            <input
+              type="search"
+              value={query}
+              onChange={(
+                event
+              ) =>
+                setQuery(
+                  event.target
+                    .value
+                )
+              }
+              placeholder="Search products..."
+              aria-label="Search products"
+              className="h-10 w-full rounded-xl border-0 bg-white pl-9 pr-4 text-sm text-gray-900 shadow-sm outline-none placeholder:text-gray-400 focus:ring-2 focus:ring-red-200 dark:bg-zinc-900 dark:text-white dark:placeholder:text-zinc-500"
+            />
+          </form>
+        </div>
+
+        {/* ===================================================
+            HAMBURGER PANEL
+        ==================================================== */}
+
+        {mobileOpen && (
+          <div
+            id="mobile-menu"
+            className="border-t border-white/10 bg-red-600 dark:bg-red-950 lg:hidden"
+          >
+            <div className="mx-auto max-w-7xl px-4 py-2">
+              <nav className="flex flex-col text-sm font-semibold">
+                {navLinks.map(
+                  (link) => (
+                    <Link
+                      key={
+                        link.label
+                      }
+                      to={
+                        link.to
+                      }
+                      className="border-b border-white/10 py-3"
+                    >
+                      {
+                        link.label
+                      }
+                    </Link>
+                  )
+                )}
+
+                {user ? (
+                  <>
+                    <Link
+                      to="/dashboard/profile"
+                      className="flex items-center gap-3 border-b border-white/10 py-3"
+                    >
+                      {user.avatar ? (
+                        <img
+                          src={
+                            user.avatar
+                          }
+                          alt={
+                            user.name ||
+                            'Profile'
+                          }
+                          className="h-9 w-9 rounded-full border-2 border-white/80 bg-white object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10">
+                          <User
+                            size={18}
+                          />
+                        </div>
+                      )}
+
+                      <div className="min-w-0">
+                        <div>
+                          My Profile
+                        </div>
+
+                        {user.name && (
+                          <div className="truncate text-xs font-normal text-white/70">
+                            {
+                              user.name
+                            }
+                          </div>
+                        )}
+                      </div>
+                    </Link>
+
+                    <button
+                      type="button"
+                      onClick={
+                        handleLogout
+                      }
+                      className="py-3 text-left text-red-100"
+                    >
+                      Logout
+                    </button>
+                  </>
+                ) : (
+                  <Link
+                    to="/login"
+                    className="py-3"
+                  >
+                    Login / Register
+                  </Link>
+                )}
+              </nav>
+            </div>
+          </div>
+        )}
+      </header>
+
+      {/* =====================================================
+          BOTTOM MOBILE NAV
+      ====================================================== */}
+
+      <nav
+        className="fixed inset-x-0 bottom-0 z-50 border-t border-gray-200 bg-white/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_18px_rgba(0,0,0,0.07)] backdrop-blur-lg dark:border-zinc-800 dark:bg-zinc-950/95 md:hidden"
+        aria-label="Mobile navigation"
+      >
+        <div className="mx-auto grid h-16 max-w-lg grid-cols-5">
+          {/* HOME */}
+
+          <Link
+            to="/"
+            className={`flex flex-col items-center justify-center gap-1 text-[10px] font-semibold ${
+              isActive('/')
+                ? 'text-red-600 dark:text-red-400'
+                : 'text-gray-500 dark:text-zinc-400'
+            }`}
+          >
+            <Home
+              size={20}
+              strokeWidth={
+                isActive('/')
+                  ? 2.5
+                  : 2
+              }
+            />
+
+            Home
+          </Link>
+
+          {/* SHOP */}
+
+          <Link
+            to="/shop"
+            className={`flex flex-col items-center justify-center gap-1 text-[10px] font-semibold ${
+              isActive('/shop')
+                ? 'text-red-600 dark:text-red-400'
+                : 'text-gray-500 dark:text-zinc-400'
+            }`}
+          >
+            <ShoppingBag
+              size={20}
+              strokeWidth={
+                isActive(
+                  '/shop'
+                )
+                  ? 2.5
+                  : 2
+              }
+            />
+
+            Shop
+          </Link>
+
+          {/* WISHLIST */}
+
+          <Link
+            to="/wishlist"
+            className={`flex flex-col items-center justify-center gap-1 text-[10px] font-semibold ${
+              isActive(
+                '/wishlist'
+              )
+                ? 'text-red-600 dark:text-red-400'
+                : 'text-gray-500 dark:text-zinc-400'
+            }`}
+          >
+            <div className="relative">
+              <Heart
+                size={20}
+              />
+
+              {wishlistCount >
+                0 && (
+                <span className="absolute -right-2.5 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[8px] font-bold text-white">
+                  {wishlistCount >
+                  99
+                    ? '99+'
+                    : wishlistCount}
+                </span>
+              )}
+            </div>
+
+            Wishlist
+          </Link>
+
+          {/* CART */}
+
+          <Link
+            to="/cart"
+            className={`flex flex-col items-center justify-center gap-1 text-[10px] font-semibold ${
+              isActive('/cart')
+                ? 'text-red-600 dark:text-red-400'
+                : 'text-gray-500 dark:text-zinc-400'
+            }`}
+          >
+            <div className="relative">
+              <ShoppingCart
+                size={20}
+              />
+
+              {cartCount >
+                0 && (
+                <span className="absolute -right-2.5 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[8px] font-bold text-white">
+                  {cartCount >
+                  99
+                    ? '99+'
+                    : cartCount}
+                </span>
+              )}
+            </div>
+
+            Cart
+          </Link>
+
+          {/* ACCOUNT */}
+
+          <Link
+            to={
+              user
+                ? '/dashboard/profile'
+                : '/login'
+            }
+            className={`flex flex-col items-center justify-center gap-1 text-[10px] font-semibold ${
+              isActive(
+                '/dashboard'
+              ) ||
+              isActive('/login')
+                ? 'text-red-600 dark:text-red-400'
+                : 'text-gray-500 dark:text-zinc-400'
+            }`}
+          >
+            {user?.avatar ? (
+              <img
+                src={
+                  user.avatar
+                }
+                alt="Account"
+                className="h-5 w-5 rounded-full object-cover"
+              />
+            ) : (
+              <User
+                size={20}
+              />
+            )}
+
+            Account
+          </Link>
+        </div>
+      </nav>
+    </>
   );
 };
 

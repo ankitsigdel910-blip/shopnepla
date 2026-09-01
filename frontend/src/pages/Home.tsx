@@ -47,15 +47,15 @@ const Section = ({
   viewAllHref,
 }: SectionProps) => {
   return (
-    <section className="mb-12">
-      <div className="flex items-end justify-between gap-4 mb-5">
-        <div>
-          <h2 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">
+    <section className="mb-8 sm:mb-10 lg:mb-12">
+      <div className="mb-4 flex items-start justify-between gap-3 sm:mb-5 sm:items-end">
+        <div className="min-w-0">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white sm:text-xl md:text-2xl">
             {title}
           </h2>
 
           {subtitle && (
-            <p className="text-sm text-gray-500 dark:text-zinc-400 mt-1">
+            <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-zinc-400 sm:text-sm">
               {subtitle}
             </p>
           )}
@@ -63,19 +63,19 @@ const Section = ({
 
         <Link
           to={viewAllHref}
-          className="text-sm font-semibold text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 flex items-center gap-1 shrink-0"
+          className="flex shrink-0 items-center gap-1 whitespace-nowrap text-xs font-semibold text-red-600 transition-colors hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 sm:text-sm"
         >
           View all
-          <ArrowRight size={15} />
+          <ArrowRight size={14} />
         </Link>
       </div>
 
       {products.length === 0 ? (
-        <div className="rounded-xl border border-gray-200 dark:border-zinc-800 p-8 text-center text-gray-500 dark:text-zinc-400">
+        <div className="rounded-xl border border-gray-200 p-6 text-center text-sm text-gray-500 dark:border-zinc-800 dark:text-zinc-400 sm:p-8">
           Nothing to show here yet.
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
           {products.map(
             (product) => (
               <ProductCard
@@ -126,10 +126,12 @@ const Home = () => {
   ] = useState(true);
 
   /* ====================================================
-     LOAD HOME PAGE DATA
+     LOAD HOME DATA
   ==================================================== */
 
   useEffect(() => {
+    let active = true;
+
     const loadHome =
       async () => {
         try {
@@ -140,78 +142,57 @@ const Home = () => {
             newRes,
             categoryRes,
           ] = await Promise.all([
-            /* Featured */
             productApi.list({
               featured: true,
               limit: 5,
             }),
 
-            /* Popular */
             productApi.list({
               sort: 'popular',
               limit: 5,
             }),
 
-            /* Real deals */
             productApi.list({
               deals: true,
               sort: 'newest',
               limit: 10,
             }),
 
-            /* New arrivals */
             productApi.list({
               sort: 'newest',
               limit: 5,
             }),
 
-            /* Categories */
             categoryApi.list(),
           ]);
 
-          const featuredProducts:
-            Product[] =
-              featuredRes.data.data
-                .products;
-
-          const popularProducts:
-            Product[] =
-              popularRes.data.data
-                .products;
-
-          const dealProducts:
-            Product[] =
-              dealsRes.data.data
-                .products;
-
-          const newestProducts:
-            Product[] =
-              newRes.data.data
-                .products;
-
-          const categoryList:
-            Category[] =
-              categoryRes.data.data
-                .categories;
+          if (!active) {
+            return;
+          }
 
           setFeatured(
-            featuredProducts
+            featuredRes.data?.data
+              ?.products ?? []
           );
 
           setPopular(
-            popularProducts
+            popularRes.data?.data
+              ?.products ?? []
           );
 
           setDiscounted(
-            dealProducts
+            dealsRes.data?.data
+              ?.products ?? []
           );
 
           setNewArrivals(
-            newestProducts
+            newRes.data?.data
+              ?.products ?? []
           );
 
           setCategories(
-            categoryList
+            categoryRes.data?.data
+              ?.categories ?? []
           );
         } catch (error) {
           console.error(
@@ -219,19 +200,21 @@ const Home = () => {
             error
           );
         } finally {
-          setLoading(false);
+          if (active) {
+            setLoading(false);
+          }
         }
       };
 
-    loadHome();
+    void loadHome();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   /* ====================================================
      POPULAR CATEGORIES
-
-     Currently the first 8 active categories.
-     If sales analytics are added later, this can
-     be replaced by actual popularity ranking.
   ==================================================== */
 
   const popularCategories =
@@ -244,17 +227,40 @@ const Home = () => {
       [categories]
     );
 
-  /*
-   * The deals table shows at most
-   * four actual discounted products.
-   */
+  /* ====================================================
+     VALID TABLE DEALS
+  ==================================================== */
+
   const tableDeals =
     useMemo(
       () =>
-        discounted.slice(
-          0,
-          4
-        ),
+        discounted
+          .filter(
+            (product) => {
+              const regular =
+                Number(
+                  product.price
+                );
+
+              const sale =
+                Number(
+                  product.discountPrice
+                );
+
+              return (
+                Number.isFinite(
+                  regular
+                ) &&
+                Number.isFinite(
+                  sale
+                ) &&
+                regular > 0 &&
+                sale >= 0 &&
+                sale < regular
+              );
+            }
+          )
+          .slice(0, 4),
       [discounted]
     );
 
@@ -264,36 +270,80 @@ const Home = () => {
 
   if (loading) {
     return (
-      <div className="py-24 flex flex-col items-center justify-center text-gray-500 dark:text-zinc-400">
+      <div className="flex min-h-[50vh] flex-col items-center justify-center py-20 text-gray-500 dark:text-zinc-400">
         <div className="loading-spinner mb-3" />
 
-        Loading ShopNepal...
+        <span className="text-sm">
+          Loading ShopNepal...
+        </span>
       </div>
     );
   }
 
   return (
-    <div className="text-gray-900 dark:text-zinc-100">
+    <div className="pb-20 text-gray-900 dark:text-zinc-100 md:pb-0">
       {/* =================================================
-          PROMOTIONAL BANNER SLIDER
+          PROMO
       ================================================== */}
 
-      <div className="mb-8">
+      <div className="mb-4 sm:mb-6 lg:mb-8">
         <PromoBannerSlider />
       </div>
 
       {/* =================================================
-          BENEFITS
+          MOBILE BENEFITS
       ================================================== */}
 
-      <section className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-12">
-        {/* Delivery */}
-        <div className="flex items-center gap-3 bg-red-50 dark:bg-zinc-900 border border-red-100 dark:border-zinc-800 rounded-xl p-4">
-          <div className="w-10 h-10 shrink-0 bg-red-100 dark:bg-red-950 text-red-600 dark:text-red-400 rounded-lg flex items-center justify-center">
+      <section className="mb-8 grid grid-cols-3 gap-2 sm:hidden">
+        <div className="flex min-w-0 flex-col items-center rounded-xl border border-red-100 bg-red-50 px-1 py-2.5 text-center dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="mb-1 flex h-8 w-8 items-center justify-center rounded-lg bg-red-100 text-red-600 dark:bg-red-950 dark:text-red-400">
+            <Truck size={17} />
+          </div>
+
+          <span className="whitespace-nowrap text-[11px] font-semibold">
+            Delivery
+          </span>
+        </div>
+
+        <div className="flex min-w-0 flex-col items-center rounded-xl border border-red-100 bg-red-50 px-1 py-2.5 text-center dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="mb-1 flex h-8 w-8 items-center justify-center rounded-lg bg-red-100 text-red-600 dark:bg-red-950 dark:text-red-400">
+            <ShieldCheck
+              size={17}
+            />
+          </div>
+
+          <span className="whitespace-nowrap text-[11px] font-semibold">
+            Secure
+          </span>
+        </div>
+
+        <Link
+          to="/shop?deals=true"
+          className="flex min-w-0 flex-col items-center rounded-xl border border-red-100 bg-red-50 px-1 py-2.5 text-center transition hover:border-red-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-red-800"
+        >
+          <div className="mb-1 flex h-8 w-8 items-center justify-center rounded-lg bg-red-100 text-red-600 dark:bg-red-950 dark:text-red-400">
+            <BadgePercent
+              size={17}
+            />
+          </div>
+
+          <span className="whitespace-nowrap text-[11px] font-semibold">
+            Deals
+          </span>
+        </Link>
+      </section>
+
+      {/* =================================================
+          TABLET / DESKTOP BENEFITS
+      ================================================== */}
+
+      <section className="mb-10 hidden grid-cols-3 gap-3 sm:grid lg:mb-12">
+        <div className="flex items-center gap-3 rounded-xl border border-red-100 bg-red-50 p-4 dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-100 text-red-600 dark:bg-red-950 dark:text-red-400">
             <Truck size={20} />
           </div>
 
-          <div>
+          <div className="min-w-0">
             <div className="font-semibold">
               Delivery Across Nepal
             </div>
@@ -305,15 +355,14 @@ const Home = () => {
           </div>
         </div>
 
-        {/* Payment */}
-        <div className="flex items-center gap-3 bg-red-50 dark:bg-zinc-900 border border-red-100 dark:border-zinc-800 rounded-xl p-4">
-          <div className="w-10 h-10 shrink-0 bg-red-100 dark:bg-red-950 text-red-600 dark:text-red-400 rounded-lg flex items-center justify-center">
+        <div className="flex items-center gap-3 rounded-xl border border-red-100 bg-red-50 p-4 dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-100 text-red-600 dark:bg-red-950 dark:text-red-400">
             <ShieldCheck
               size={20}
             />
           </div>
 
-          <div>
+          <div className="min-w-0">
             <div className="font-semibold">
               Secure Payments
             </div>
@@ -324,18 +373,17 @@ const Home = () => {
           </div>
         </div>
 
-        {/* Deals */}
         <Link
           to="/shop?deals=true"
-          className="flex items-center gap-3 bg-red-50 dark:bg-zinc-900 border border-red-100 dark:border-zinc-800 rounded-xl p-4 hover:border-red-300 dark:hover:border-red-800 hover:shadow-sm transition-all"
+          className="flex items-center gap-3 rounded-xl border border-red-100 bg-red-50 p-4 transition-all hover:border-red-300 hover:shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-red-800"
         >
-          <div className="w-10 h-10 shrink-0 bg-red-100 dark:bg-red-950 text-red-600 dark:text-red-400 rounded-lg flex items-center justify-center">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-100 text-red-600 dark:bg-red-950 dark:text-red-400">
             <BadgePercent
               size={20}
             />
           </div>
 
-          <div>
+          <div className="min-w-0">
             <div className="font-semibold">
               Great Deals
             </div>
@@ -352,40 +400,47 @@ const Home = () => {
           POPULAR CATEGORIES
       ================================================== */}
 
-      <section className="mb-12">
-        <div className="flex items-end justify-between gap-4 mb-5">
-          <div>
+      <section className="mb-8 sm:mb-10 lg:mb-12">
+        <div className="mb-4 flex items-start justify-between gap-2 sm:mb-5 sm:items-end">
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h2 className="text-xl md:text-2xl font-bold dark:text-white">
+              <h2 className="text-lg font-bold dark:text-white sm:text-xl md:text-2xl">
                 Popular Categories
               </h2>
 
-              <span className="hidden sm:inline-flex bg-red-100 dark:bg-red-950 text-red-600 dark:text-red-400 text-xs font-bold px-2 py-1 rounded-full">
+              <span className="hidden rounded-full bg-red-100 px-2 py-1 text-xs font-bold text-red-600 dark:bg-red-950 dark:text-red-400 sm:inline-flex">
                 POPULAR
               </span>
             </div>
 
-            <p className="text-sm text-gray-500 dark:text-zinc-400 mt-1">
-              Explore customer-favorite
-              shopping categories
+            <p className="mt-1 text-xs text-gray-500 dark:text-zinc-400 sm:text-sm">
+              <span className="sm:hidden">
+                Explore our collections
+              </span>
+
+              <span className="hidden sm:inline">
+                Explore customer-favorite
+                shopping categories
+              </span>
             </p>
           </div>
 
           <Link
             to="/shop"
-            className="text-sm font-semibold text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
+            className="flex shrink-0 items-center gap-1 whitespace-nowrap text-xs font-semibold text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 sm:text-sm"
           >
             Browse all
+            <ArrowRight size={14} />
           </Link>
         </div>
 
         {popularCategories.length ===
         0 ? (
-          <div className="card p-8 text-center text-sm text-gray-500 dark:text-zinc-400">
+          <div className="rounded-xl border border-gray-200 p-6 text-center text-sm text-gray-500 dark:border-zinc-800 dark:text-zinc-400">
             No categories available.
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-3 lg:grid-cols-8">
             {popularCategories.map(
               (
                 category,
@@ -396,11 +451,14 @@ const Home = () => {
                     category._id
                   }
                   to={`/shop?category=${category._id}`}
-                  className="group relative bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-4 text-center hover:border-red-300 dark:hover:border-red-800 hover:shadow-md transition-all"
+                  className="group relative flex min-w-0 items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 transition-all hover:border-red-300 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-red-800 sm:block sm:p-4 sm:text-center"
                 >
                   {index <
                     3 && (
-                    <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full" />
+                    <span
+                      className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500"
+                      aria-hidden="true"
+                    />
                   )}
 
                   <img
@@ -411,10 +469,11 @@ const Home = () => {
                     alt={
                       category.name
                     }
-                    className="w-16 h-16 object-cover rounded-full mx-auto mb-3 ring-2 ring-red-50 dark:ring-red-950 group-hover:ring-red-200 dark:group-hover:ring-red-800 transition"
+                    loading="lazy"
+                    className="h-12 w-12 shrink-0 rounded-full object-cover ring-2 ring-red-50 transition group-hover:ring-red-200 dark:ring-red-950 dark:group-hover:ring-red-800 sm:mx-auto sm:mb-3 sm:h-16 sm:w-16"
                   />
 
-                  <span className="text-xs sm:text-sm font-semibold group-hover:text-red-600 dark:group-hover:text-red-400 transition">
+                  <span className="line-clamp-2 min-w-0 text-xs font-semibold leading-4 group-hover:text-red-600 dark:group-hover:text-red-400 sm:text-sm">
                     {
                       category.name
                     }
@@ -427,10 +486,11 @@ const Home = () => {
       </section>
 
       {/* =================================================
-          DEAL PRODUCTS
+          DEALS
       ================================================== */}
 
-      {discounted.length > 0 && (
+      {discounted.length >
+        0 && (
         <Section
           title="Today's Deals"
           subtitle="Limited-time savings on selected products"
@@ -454,24 +514,26 @@ const Home = () => {
       />
 
       {/* =================================================
-          SPECIAL OFFERS TABLE
+          SPECIAL OFFERS
       ================================================== */}
 
-      <section className="mb-12">
-        <div className="rounded-2xl border border-red-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden shadow-sm">
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-5 md:p-6 bg-gradient-to-r from-red-50 to-white dark:from-red-950/50 dark:to-zinc-900 border-b border-red-100 dark:border-zinc-800">
-            <div>
+      <section className="mb-8 sm:mb-10 lg:mb-12">
+        <div className="overflow-hidden rounded-2xl border border-red-100 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="flex items-start justify-between gap-3 border-b border-red-100 bg-gradient-to-r from-red-50 to-white p-4 dark:border-zinc-800 dark:from-red-950/50 dark:to-zinc-900 sm:items-center sm:p-5 md:p-6">
+            <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <BadgePercent className="text-red-600 dark:text-red-400" />
+                <BadgePercent
+                  size={20}
+                  className="shrink-0 text-red-600 dark:text-red-400"
+                />
 
-                <h2 className="text-xl md:text-2xl font-bold">
-                  Special Offers &
+                <h2 className="text-lg font-bold sm:text-xl md:text-2xl">
+                  Special Offers &amp;
                   Deals
                 </h2>
               </div>
 
-              <p className="text-sm text-gray-500 dark:text-zinc-400 mt-1">
+              <p className="mt-1 text-xs text-gray-500 dark:text-zinc-400 sm:text-sm">
                 Real discounts currently
                 available on ShopNepal
               </p>
@@ -479,21 +541,28 @@ const Home = () => {
 
             <Link
               to="/shop?deals=true"
-              className="text-sm font-semibold text-red-600 dark:text-red-400 hover:text-red-700 flex items-center gap-1"
+              className="flex shrink-0 items-center gap-1 whitespace-nowrap text-xs font-semibold text-red-600 hover:text-red-700 dark:text-red-400 sm:text-sm"
             >
-              See all deals
+              <span className="sm:hidden">
+                See all
+              </span>
+
+              <span className="hidden sm:inline">
+                See all deals
+              </span>
+
               <ArrowRight
-                size={15}
+                size={14}
               />
             </Link>
           </div>
 
           {tableDeals.length ===
           0 ? (
-            <div className="p-8 text-center">
+            <div className="p-7 text-center">
               <BadgePercent
-                size={32}
-                className="mx-auto text-gray-300 dark:text-zinc-700 mb-2"
+                size={30}
+                className="mx-auto mb-2 text-gray-300 dark:text-zinc-700"
               />
 
               <p className="text-sm text-gray-500 dark:text-zinc-400">
@@ -502,150 +571,252 @@ const Home = () => {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[650px] text-sm">
-                <thead className="bg-gray-50 dark:bg-zinc-950/60 text-gray-600 dark:text-zinc-300">
-                  <tr>
-                    <th className="text-left font-semibold px-5 py-4">
-                      Product
-                    </th>
+            <>
+              {/* MOBILE */}
 
-                    <th className="text-left font-semibold px-5 py-4">
-                      Regular Price
-                    </th>
+              <div className="divide-y divide-gray-100 dark:divide-zinc-800 md:hidden">
+                {tableDeals.map(
+                  (product) => {
+                    const regularPrice =
+                      Number(
+                        product.price
+                      );
 
-                    <th className="text-left font-semibold px-5 py-4">
-                      Deal Price
-                    </th>
+                    const salePrice =
+                      Number(
+                        product.discountPrice
+                      );
 
-                    <th className="text-left font-semibold px-5 py-4">
-                      You Save
-                    </th>
+                    const saved =
+                      Math.max(
+                        0,
+                        regularPrice -
+                          salePrice
+                      );
 
-                    <th className="text-left font-semibold px-5 py-4">
-                      Offer
-                    </th>
+                    const percent =
+                      regularPrice > 0
+                        ? Math.round(
+                            (saved /
+                              regularPrice) *
+                              100
+                          )
+                        : 0;
 
-                    <th className="text-right font-semibold px-5 py-4">
-                      Action
-                    </th>
-                  </tr>
-                </thead>
+                    return (
+                      <Link
+                        key={
+                          product._id
+                        }
+                        to={`/product/${product._id}`}
+                        className="flex items-center gap-3 p-3.5 transition hover:bg-red-50/50 dark:hover:bg-red-950/20"
+                      >
+                        {product
+                          .images?.[0] ? (
+                          <img
+                            src={
+                              product
+                                .images[0]
+                            }
+                            alt={
+                              product.name
+                            }
+                            loading="lazy"
+                            className="h-16 w-16 shrink-0 rounded-xl bg-gray-100 object-cover dark:bg-zinc-800"
+                          />
+                        ) : (
+                          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-500 dark:bg-red-950">
+                            <BadgePercent
+                              size={21}
+                            />
+                          </div>
+                        )}
 
-                <tbody className="divide-y divide-gray-100 dark:divide-zinc-800">
-                  {tableDeals.map(
-                    (product) => {
-                      const regularPrice =
-                        Number(
-                          product.price
-                        );
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-sm font-semibold">
+                            {
+                              product.name
+                            }
+                          </div>
 
-                      const salePrice =
-                        Number(
-                          product.discountPrice
-                        );
+                          <div className="mt-1 flex flex-wrap items-baseline gap-2">
+                            <span className="text-sm font-bold text-red-600 dark:text-red-400">
+                              Rs.{' '}
+                              {salePrice.toLocaleString()}
+                            </span>
 
-                      const amountSaved =
-                        Math.max(
-                          0,
-                          regularPrice -
-                            salePrice
-                        );
+                            <span className="text-[11px] text-gray-400 line-through">
+                              Rs.{' '}
+                              {regularPrice.toLocaleString()}
+                            </span>
+                          </div>
 
-                      const discountPercent =
-                        regularPrice >
-                        0
-                          ? Math.round(
-                              (amountSaved /
-                                regularPrice) *
-                                100
-                            )
-                          : 0;
-
-                      return (
-                        <tr
-                          key={
-                            product._id
-                          }
-                          className="hover:bg-red-50/50 dark:hover:bg-red-950/20 transition-colors"
-                        >
-                          {/* Product */}
-                          <td className="px-5 py-4">
-                            <div className="flex items-center gap-3">
-                              {product
-                                .images?.[0] ? (
-                                <img
-                                  src={
-                                    product
-                                      .images[0]
-                                  }
-                                  alt={
-                                    product.name
-                                  }
-                                  className="w-10 h-10 rounded-lg object-cover bg-gray-100 dark:bg-zinc-800"
-                                />
-                              ) : (
-                                <div className="w-10 h-10 rounded-lg bg-red-50 dark:bg-red-950 flex items-center justify-center text-red-500">
-                                  <BadgePercent
-                                    size={
-                                      17
-                                    }
-                                  />
-                                </div>
-                              )}
-
-                              <div className="font-semibold text-gray-900 dark:text-white max-w-[220px] truncate">
-                                {
-                                  product.name
-                                }
-                              </div>
-                            </div>
-                          </td>
-
-                          {/* Regular */}
-                          <td className="px-5 py-4 text-gray-500 dark:text-zinc-400 line-through">
-                            Rs.{' '}
-                            {regularPrice.toLocaleString()}
-                          </td>
-
-                          {/* Deal */}
-                          <td className="px-5 py-4 font-bold text-red-600 dark:text-red-400">
-                            Rs.{' '}
-                            {salePrice.toLocaleString()}
-                          </td>
-
-                          {/* Saved */}
-                          <td className="px-5 py-4 text-green-600 dark:text-green-400 font-medium">
-                            Rs.{' '}
-                            {amountSaved.toLocaleString()}
-                          </td>
-
-                          {/* Offer */}
-                          <td className="px-5 py-4">
-                            <span className="inline-flex bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300 font-bold text-xs px-3 py-1.5 rounded-full whitespace-nowrap">
+                          <div className="mt-1.5 flex items-center gap-2">
+                            <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700 dark:bg-red-950 dark:text-red-300">
                               {
-                                discountPercent
+                                percent
                               }
                               % OFF
                             </span>
-                          </td>
 
-                          {/* Action */}
-                          <td className="px-5 py-4 text-right">
-                            <Link
-                              to={`/product/${product._id}`}
-                              className="inline-flex bg-red-600 hover:bg-red-700 text-white font-semibold px-3 py-2 rounded-lg transition whitespace-nowrap"
-                            >
-                              Shop now
-                            </Link>
-                          </td>
-                        </tr>
-                      );
-                    }
-                  )}
-                </tbody>
-              </table>
-            </div>
+                            <span className="text-[10px] font-medium text-green-600 dark:text-green-400">
+                              Save Rs.{' '}
+                              {saved.toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+
+                        <ArrowRight
+                          size={16}
+                          className="shrink-0 text-gray-400"
+                        />
+                      </Link>
+                    );
+                  }
+                )}
+              </div>
+
+              {/* DESKTOP */}
+
+              <div className="hidden overflow-x-auto md:block">
+                <table className="w-full min-w-[650px] text-sm">
+                  <thead className="bg-gray-50 text-gray-600 dark:bg-zinc-950/60 dark:text-zinc-300">
+                    <tr>
+                      <th className="px-5 py-4 text-left font-semibold">
+                        Product
+                      </th>
+
+                      <th className="px-5 py-4 text-left font-semibold">
+                        Regular Price
+                      </th>
+
+                      <th className="px-5 py-4 text-left font-semibold">
+                        Deal Price
+                      </th>
+
+                      <th className="px-5 py-4 text-left font-semibold">
+                        You Save
+                      </th>
+
+                      <th className="px-5 py-4 text-left font-semibold">
+                        Offer
+                      </th>
+
+                      <th className="px-5 py-4 text-right font-semibold">
+                        Action
+                      </th>
+                    </tr>
+                  </thead>
+
+                  <tbody className="divide-y divide-gray-100 dark:divide-zinc-800">
+                    {tableDeals.map(
+                      (product) => {
+                        const regularPrice =
+                          Number(
+                            product.price
+                          );
+
+                        const salePrice =
+                          Number(
+                            product.discountPrice
+                          );
+
+                        const saved =
+                          Math.max(
+                            0,
+                            regularPrice -
+                              salePrice
+                          );
+
+                        const percent =
+                          regularPrice > 0
+                            ? Math.round(
+                                (saved /
+                                  regularPrice) *
+                                  100
+                              )
+                            : 0;
+
+                        return (
+                          <tr
+                            key={
+                              product._id
+                            }
+                            className="transition-colors hover:bg-red-50/50 dark:hover:bg-red-950/20"
+                          >
+                            <td className="px-5 py-4">
+                              <div className="flex items-center gap-3">
+                                {product
+                                  .images?.[0] ? (
+                                  <img
+                                    src={
+                                      product
+                                        .images[0]
+                                    }
+                                    alt={
+                                      product.name
+                                    }
+                                    loading="lazy"
+                                    className="h-10 w-10 rounded-lg bg-gray-100 object-cover dark:bg-zinc-800"
+                                  />
+                                ) : (
+                                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-50 text-red-500 dark:bg-red-950">
+                                    <BadgePercent
+                                      size={
+                                        17
+                                      }
+                                    />
+                                  </div>
+                                )}
+
+                                <div className="max-w-[220px] truncate font-semibold">
+                                  {
+                                    product.name
+                                  }
+                                </div>
+                              </div>
+                            </td>
+
+                            <td className="px-5 py-4 text-gray-500 line-through dark:text-zinc-400">
+                              Rs.{' '}
+                              {regularPrice.toLocaleString()}
+                            </td>
+
+                            <td className="px-5 py-4 font-bold text-red-600 dark:text-red-400">
+                              Rs.{' '}
+                              {salePrice.toLocaleString()}
+                            </td>
+
+                            <td className="px-5 py-4 font-medium text-green-600 dark:text-green-400">
+                              Rs.{' '}
+                              {saved.toLocaleString()}
+                            </td>
+
+                            <td className="px-5 py-4">
+                              <span className="inline-flex whitespace-nowrap rounded-full bg-red-100 px-3 py-1.5 text-xs font-bold text-red-700 dark:bg-red-950 dark:text-red-300">
+                                {
+                                  percent
+                                }
+                                % OFF
+                              </span>
+                            </td>
+
+                            <td className="px-5 py-4 text-right">
+                              <Link
+                                to={`/product/${product._id}`}
+                                className="inline-flex whitespace-nowrap rounded-lg bg-red-600 px-3 py-2 font-semibold text-white transition hover:bg-red-700"
+                              >
+                                Shop now
+                              </Link>
+                            </td>
+                          </tr>
+                        );
+                      }
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
       </section>
@@ -673,26 +844,25 @@ const Home = () => {
       />
 
       {/* =================================================
-          CONTACT US
+          CONTACT
       ================================================== */}
 
       <section
         id="contact"
-        className="mb-6 rounded-2xl overflow-hidden bg-gray-950 dark:bg-black text-white"
+        className="mb-4 overflow-hidden rounded-2xl bg-gray-950 text-white dark:bg-black sm:mb-6"
       >
         <div className="grid md:grid-cols-2">
-          {/* Left */}
-          <div className="p-7 md:p-10">
-            <span className="text-red-400 font-bold text-sm uppercase tracking-wider">
+          <div className="p-6 md:p-10">
+            <span className="text-xs font-bold uppercase tracking-wider text-red-400 sm:text-sm">
               Contact Us
             </span>
 
-            <h2 className="text-2xl md:text-3xl font-bold mt-2">
+            <h2 className="mt-2 text-xl font-bold sm:text-2xl md:text-3xl">
               Need help with your
               order?
             </h2>
 
-            <p className="text-gray-400 mt-3 max-w-md leading-7">
+            <p className="mt-3 max-w-md text-sm leading-6 text-gray-400 md:leading-7">
               Our support team is
               here to help with
               products, orders,
@@ -702,72 +872,62 @@ const Home = () => {
 
             <Link
               to="/shop"
-              className="inline-flex mt-6 bg-red-600 hover:bg-red-700 text-white font-semibold px-5 py-3 rounded-xl transition"
+              className="mt-5 inline-flex rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 md:mt-6 md:px-5 md:py-3"
             >
               Continue Shopping
             </Link>
           </div>
 
-          {/* Right */}
-          <div className="bg-white/5 p-7 md:p-10 space-y-5">
-            {/* Phone */}
-            <div className="flex items-start gap-4">
-              <div className="w-10 h-10 shrink-0 rounded-lg bg-red-600/20 text-red-400 flex items-center justify-center">
-                <Phone
-                  size={19}
-                />
+          <div className="space-y-4 bg-white/5 p-6 md:space-y-5 md:p-10">
+            <div className="flex items-start gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-600/20 text-red-400">
+                <Phone size={18} />
               </div>
 
               <div>
-                <div className="text-sm text-gray-400">
+                <div className="text-xs text-gray-400 sm:text-sm">
                   Phone
                 </div>
 
                 <a
                   href="tel:+9779702828652"
-                  className="font-semibold hover:text-red-400"
+                  className="text-sm font-semibold hover:text-red-400 sm:text-base"
                 >
                   +977 9702828652
                 </a>
               </div>
             </div>
 
-            {/* Email */}
-            <div className="flex items-start gap-4">
-              <div className="w-10 h-10 shrink-0 rounded-lg bg-red-600/20 text-red-400 flex items-center justify-center">
-                <Mail
-                  size={19}
-                />
+            <div className="flex items-start gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-600/20 text-red-400">
+                <Mail size={18} />
               </div>
 
-              <div>
-                <div className="text-sm text-gray-400">
+              <div className="min-w-0">
+                <div className="text-xs text-gray-400 sm:text-sm">
                   Email
                 </div>
 
                 <a
                   href="mailto:ankitsigdel910@gmail.com"
-                  className="font-semibold hover:text-red-400 break-all"
+                  className="break-all text-sm font-semibold hover:text-red-400 sm:text-base"
                 >
                   ankitsigdel910@gmail.com
                 </a>
               </div>
             </div>
 
-            {/* Address */}
-            <div className="flex items-start gap-4">
-              <div className="w-10 h-10 shrink-0 rounded-lg bg-red-600/20 text-red-400 flex items-center justify-center">
-                <MapPin
-                  size={19}
-                />
+            <div className="flex items-start gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-600/20 text-red-400">
+                <MapPin size={18} />
               </div>
 
               <div>
-                <div className="text-sm text-gray-400">
+                <div className="text-xs text-gray-400 sm:text-sm">
                   Address
                 </div>
 
-                <div className="font-semibold">
+                <div className="text-sm font-semibold sm:text-base">
                   Kathmandu, Nepal
                 </div>
               </div>
