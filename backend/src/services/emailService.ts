@@ -1,5 +1,9 @@
 import nodemailer from 'nodemailer';
 
+/* ============================================================
+   TYPES
+============================================================ */
+
 interface SendEmailOptions {
   to: string;
   subject: string;
@@ -8,7 +12,7 @@ interface SendEmailOptions {
 }
 
 /* ============================================================
-   CREATE EMAIL TRANSPORTER
+   CREATE TRANSPORTER
 ============================================================ */
 
 const createTransporter = () => {
@@ -27,6 +31,10 @@ const createTransporter = () => {
       /\s+/g,
       ''
     );
+
+  /* ==========================================================
+     VALIDATE CONFIGURATION
+  ========================================================== */
 
   if (!host) {
     throw new Error(
@@ -55,12 +63,16 @@ const createTransporter = () => {
     );
   }
 
+  /* ==========================================================
+     SMTP TRANSPORT
+  ========================================================== */
+
   return nodemailer.createTransport({
     host,
     port,
 
-    // Port 465 uses implicit TLS.
-    // Port 587 starts normally and upgrades using STARTTLS.
+    // Port 465 uses SSL/TLS immediately.
+    // Port 587 uses STARTTLS.
     secure: port === 465,
 
     auth: {
@@ -68,8 +80,20 @@ const createTransporter = () => {
       pass: password,
     },
 
-    requireTLS:
-      port === 587,
+    requireTLS: port === 587,
+
+    /* ========================================================
+       TIMEOUTS
+
+       Prevent Render requests from hanging for several minutes
+       when the SMTP server cannot be reached.
+    ======================================================== */
+
+    connectionTimeout: 10_000,
+
+    greetingTimeout: 10_000,
+
+    socketTimeout: 15_000,
   });
 };
 
@@ -103,9 +127,13 @@ export const sendEmail = async ({
     const info =
       await transporter.sendMail({
         from,
+
         to: to.trim(),
+
         subject,
+
         text,
+
         html,
       });
 
@@ -115,7 +143,7 @@ export const sendEmail = async ({
     );
   } catch (error) {
     console.error(
-      'Failed to send email:',
+      'SMTP email sending failed:',
       error
     );
 
@@ -124,7 +152,7 @@ export const sendEmail = async ({
 };
 
 /* ============================================================
-   VERIFY SMTP CONNECTION
+   VERIFY EMAIL CONNECTION
 ============================================================ */
 
 export const verifyEmailConnection =
