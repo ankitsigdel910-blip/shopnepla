@@ -1,8 +1,4 @@
-import nodemailer from 'nodemailer';
-
-/* ============================================================
-   TYPES
-============================================================ */
+import { Resend } from 'resend';
 
 interface SendEmailOptions {
   to: string;
@@ -12,89 +8,20 @@ interface SendEmailOptions {
 }
 
 /* ============================================================
-   CREATE TRANSPORTER
+   RESEND CLIENT
 ============================================================ */
 
-const createTransporter = () => {
-  const host =
-    process.env.EMAIL_HOST?.trim();
+const getResendClient = () => {
+  const apiKey =
+    process.env.RESEND_API_KEY?.trim();
 
-  const port = Number(
-    process.env.EMAIL_PORT || 587
-  );
-
-  const user =
-    process.env.EMAIL_USER?.trim();
-
-  const password =
-    process.env.EMAIL_PASSWORD?.replace(
-      /\s+/g,
-      ''
-    );
-
-  /* ==========================================================
-     VALIDATE CONFIGURATION
-  ========================================================== */
-
-  if (!host) {
+  if (!apiKey) {
     throw new Error(
-      'EMAIL_HOST is not configured'
+      'RESEND_API_KEY is not configured'
     );
   }
 
-  if (!user) {
-    throw new Error(
-      'EMAIL_USER is not configured'
-    );
-  }
-
-  if (!password) {
-    throw new Error(
-      'EMAIL_PASSWORD is not configured'
-    );
-  }
-
-  if (
-    !Number.isFinite(port) ||
-    port <= 0
-  ) {
-    throw new Error(
-      'EMAIL_PORT is invalid'
-    );
-  }
-
-  /* ==========================================================
-     SMTP TRANSPORT
-  ========================================================== */
-
-  return nodemailer.createTransport({
-    host,
-    port,
-
-    // Port 465 uses SSL/TLS immediately.
-    // Port 587 uses STARTTLS.
-    secure: port === 465,
-
-    auth: {
-      user,
-      pass: password,
-    },
-
-    requireTLS: port === 587,
-
-    /* ========================================================
-       TIMEOUTS
-
-       Prevent Render requests from hanging for several minutes
-       when the SMTP server cannot be reached.
-    ======================================================== */
-
-    connectionTimeout: 10_000,
-
-    greetingTimeout: 10_000,
-
-    socketTimeout: 15_000,
-  });
+  return new Resend(apiKey);
 };
 
 /* ============================================================
@@ -107,43 +34,46 @@ export const sendEmail = async ({
   text,
   html,
 }: SendEmailOptions): Promise<void> => {
-  const user =
-    process.env.EMAIL_USER?.trim();
-
-  const from =
-    process.env.EMAIL_FROM?.trim() ||
-    `ShopNepal <${user}>`;
-
   if (!to?.trim()) {
     throw new Error(
       'Email recipient is required'
     );
   }
 
-  const transporter =
-    createTransporter();
+  const resend =
+    getResendClient();
+
+  const from =
+    process.env.EMAIL_FROM?.trim() ||
+    'ShopNepal <onboarding@resend.dev>';
 
   try {
-    const info =
-      await transporter.sendMail({
-        from,
+    const {
+      data,
+      error,
+    } = await resend.emails.send({
+      from,
+      to: [to.trim()],
+      subject,
+      text:
+        text ||
+        'Please view this email in an HTML-compatible email client.',
+      html,
+    });
 
-        to: to.trim(),
-
-        subject,
-
-        text,
-
-        html,
-      });
+    if (error) {
+      throw new Error(
+        error.message
+      );
+    }
 
     console.log(
       'Email sent successfully:',
-      info.messageId
+      data?.id
     );
   } catch (error) {
     console.error(
-      'SMTP email sending failed:',
+      'Email API sending failed:',
       error
     );
 
@@ -152,26 +82,20 @@ export const sendEmail = async ({
 };
 
 /* ============================================================
-   VERIFY EMAIL CONNECTION
+   CONNECTION CHECK
 ============================================================ */
 
 export const verifyEmailConnection =
   async (): Promise<void> => {
-    const transporter =
-      createTransporter();
-
-    try {
-      await transporter.verify();
-
-      console.log(
-        'Email server connected successfully'
+    if (
+      !process.env.RESEND_API_KEY?.trim()
+    ) {
+      throw new Error(
+        'RESEND_API_KEY is not configured'
       );
-    } catch (error) {
-      console.error(
-        'Email server connection failed:',
-        error
-      );
-
-      throw error;
     }
+
+    console.log(
+      'Resend email configuration loaded'
+    );
   };
