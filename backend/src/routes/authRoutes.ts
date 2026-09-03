@@ -7,9 +7,6 @@ import {
 } from 'express-validator';
 
 import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
-import crypto from 'crypto';
 
 import {
   register,
@@ -32,73 +29,16 @@ import {
 
 import ApiError from '../utils/ApiError';
 
+/* ============================================================
+   ROUTER
+============================================================ */
+
 const router =
   Router();
 
-// ============================================================
-// AVATAR UPLOAD DIRECTORY
-// ============================================================
-
-const avatarDirectory =
-  path.resolve(
-    process.cwd(),
-    'uploads',
-    'avatars'
-  );
-
-fs.mkdirSync(
-  avatarDirectory,
-  {
-    recursive: true,
-  }
-);
-
-// ============================================================
-// AVATAR STORAGE
-// ============================================================
-
-const avatarStorage =
-  multer.diskStorage({
-    destination: (
-      _req,
-      _file,
-      callback
-    ) => {
-      callback(
-        null,
-        avatarDirectory
-      );
-    },
-
-    filename: (
-      _req,
-      file,
-      callback
-    ) => {
-      const extension =
-        path
-          .extname(
-            file.originalname
-          )
-          .toLowerCase();
-
-      const uniqueName =
-        `${Date.now()}-${crypto
-          .randomBytes(8)
-          .toString(
-            'hex'
-          )}${extension}`;
-
-      callback(
-        null,
-        uniqueName
-      );
-    },
-  });
-
-// ============================================================
-// AVATAR FILE TYPES
-// ============================================================
+/* ============================================================
+   AVATAR FILE TYPES
+============================================================ */
 
 const avatarMimeTypes =
   new Set([
@@ -107,14 +47,35 @@ const avatarMimeTypes =
     'image/webp',
   ]);
 
-// ============================================================
-// AVATAR UPLOADER
-// ============================================================
+/* ============================================================
+   AVATAR UPLOADER
+
+   Avatar files are stored temporarily in memory.
+
+   The controller receives the image through:
+
+   req.file.buffer
+
+   and uploads it to Cloudinary.
+
+   This avoids storing profile images on Render's temporary
+   filesystem.
+============================================================ */
 
 const avatarUpload =
   multer({
     storage:
-      avatarStorage,
+      multer.memoryStorage(),
+
+    limits: {
+      // Maximum avatar size = 5 MB
+      fileSize:
+        5 *
+        1024 *
+        1024,
+
+      files: 1,
+    },
 
     fileFilter: (
       _req,
@@ -138,24 +99,14 @@ const avatarUpload =
         new ApiError(
           400,
           'Only JPG, PNG and WebP profile images are allowed'
-        ) as any,
-        false
+        ) as any
       );
-    },
-
-    limits: {
-      fileSize:
-        5 *
-        1024 *
-        1024,
-
-      files: 1,
     },
   });
 
-// ============================================================
-// REGISTER
-// ============================================================
+/* ============================================================
+   REGISTER
+============================================================ */
 
 router.post(
   '/register',
@@ -169,10 +120,12 @@ router.post(
       ),
 
     body('email')
+      .trim()
       .isEmail()
       .withMessage(
         'A valid email is required'
-      ),
+      )
+      .normalizeEmail(),
 
     body('phone')
       .trim()
@@ -189,11 +142,35 @@ router.post(
         'Password must be at least 8 characters'
       ),
 
-    body('confirmPassword')
+    body(
+      'confirmPassword'
+    )
       .notEmpty()
       .withMessage(
         'Confirm password is required'
       ),
+
+    body(
+      'confirmPassword'
+    ).custom(
+      (
+        value,
+        {
+          req,
+        }
+      ) => {
+        if (
+          value !==
+          req.body.password
+        ) {
+          throw new Error(
+            'Password and confirm password do not match'
+          );
+        }
+
+        return true;
+      }
+    ),
   ],
 
   validate,
@@ -201,9 +178,9 @@ router.post(
   register
 );
 
-// ============================================================
-// LOGIN
-// ============================================================
+/* ============================================================
+   LOGIN
+============================================================ */
 
 router.post(
   '/login',
@@ -216,12 +193,20 @@ router.post(
       ),
 
     body().custom(
-      (
-        value
-      ) => {
+      (value) => {
+        const email =
+          String(
+            value.email || ''
+          ).trim();
+
+        const phone =
+          String(
+            value.phone || ''
+          ).trim();
+
         if (
-          !value.email &&
-          !value.phone
+          !email &&
+          !phone
         ) {
           throw new Error(
             'Email or phone is required'
@@ -238,9 +223,9 @@ router.post(
   login
 );
 
-// ============================================================
-// LOGOUT
-// ============================================================
+/* ============================================================
+   LOGOUT
+============================================================ */
 
 router.post(
   '/logout',
@@ -250,9 +235,9 @@ router.post(
   logout
 );
 
-// ============================================================
-// CURRENT USER
-// ============================================================
+/* ============================================================
+   CURRENT USER
+============================================================ */
 
 router.get(
   '/me',
@@ -262,9 +247,9 @@ router.get(
   getMe
 );
 
-// ============================================================
-// UPDATE PROFILE + AVATAR
-// ============================================================
+/* ============================================================
+   UPDATE PROFILE + CLOUDINARY AVATAR
+============================================================ */
 
 router.put(
   '/profile',
@@ -278,9 +263,9 @@ router.put(
   updateProfile
 );
 
-// ============================================================
-// CHANGE PASSWORD
-// ============================================================
+/* ============================================================
+   CHANGE PASSWORD
+============================================================ */
 
 router.put(
   '/change-password',
@@ -288,6 +273,14 @@ router.put(
   protect,
 
   [
+    body(
+      'currentPassword'
+    )
+      .notEmpty()
+      .withMessage(
+        'Current password is required'
+      ),
+
     body(
       'newPassword'
     )
@@ -297,6 +290,36 @@ router.put(
       .withMessage(
         'New password must be at least 8 characters'
       ),
+
+    body(
+      'confirmNewPassword'
+    )
+      .notEmpty()
+      .withMessage(
+        'Confirm new password is required'
+      ),
+
+    body(
+      'confirmNewPassword'
+    ).custom(
+      (
+        value,
+        {
+          req,
+        }
+      ) => {
+        if (
+          value !==
+          req.body.newPassword
+        ) {
+          throw new Error(
+            'New password and confirmation do not match'
+          );
+        }
+
+        return true;
+      }
+    ),
   ],
 
   validate,
@@ -304,19 +327,21 @@ router.put(
   changePassword
 );
 
-// ============================================================
-// FORGOT PASSWORD
-// ============================================================
+/* ============================================================
+   FORGOT PASSWORD
+============================================================ */
 
 router.post(
   '/forgot-password',
 
   [
     body('email')
+      .trim()
       .isEmail()
       .withMessage(
         'A valid email is required'
-      ),
+      )
+      .normalizeEmail(),
   ],
 
   validate,
@@ -324,9 +349,9 @@ router.post(
   forgotPassword
 );
 
-// ============================================================
-// RESET PASSWORD
-// ============================================================
+/* ============================================================
+   RESET PASSWORD
+============================================================ */
 
 router.post(
   '/reset-password/:token',
@@ -339,11 +364,45 @@ router.post(
       .withMessage(
         'Password must be at least 8 characters'
       ),
+
+    body(
+      'confirmPassword'
+    )
+      .notEmpty()
+      .withMessage(
+        'Confirm password is required'
+      ),
+
+    body(
+      'confirmPassword'
+    ).custom(
+      (
+        value,
+        {
+          req,
+        }
+      ) => {
+        if (
+          value !==
+          req.body.password
+        ) {
+          throw new Error(
+            'Passwords do not match'
+          );
+        }
+
+        return true;
+      }
+    ),
   ],
 
   validate,
 
   resetPassword
 );
+
+/* ============================================================
+   EXPORT ROUTER
+============================================================ */
 
 export default router;

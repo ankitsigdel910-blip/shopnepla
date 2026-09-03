@@ -1,17 +1,38 @@
 import crypto from 'crypto';
+
 import asyncHandler from 'express-async-handler';
-import { Response } from 'express';
+
+import {
+  Response,
+} from 'express';
 
 import User from '../models/User';
-import ApiError from '../utils/ApiError';
-import { sendSuccess } from '../utils/ApiResponse';
-import { sendTokenResponse } from '../utils/generateToken';
-import { AuthRequest } from '../types';
-import { sendEmail } from '../services/emailService';
 
-// ============================================================
-// PUBLIC USER
-// ============================================================
+import ApiError from '../utils/ApiError';
+
+import {
+  sendSuccess,
+} from '../utils/ApiResponse';
+
+import {
+  sendTokenResponse,
+} from '../utils/generateToken';
+
+import {
+  AuthRequest,
+} from '../types';
+
+import {
+  sendEmail,
+} from '../services/emailService';
+
+import cloudinary, {
+  ensureCloudinaryConfigured,
+} from '../config/cloudinary';
+
+/* ============================================================
+   PUBLIC USER
+============================================================ */
 
 const toPublicUser = (
   user: any
@@ -41,10 +62,102 @@ const toPublicUser = (
     user.createdAt,
 });
 
-// ============================================================
-// REGISTER
-// POST /api/auth/register
-// ============================================================
+/* ============================================================
+   UPLOAD AVATAR TO CLOUDINARY
+============================================================ */
+
+const uploadAvatarToCloudinary = (
+  file: Express.Multer.File,
+  userId: string
+): Promise<string> => {
+  ensureCloudinaryConfigured();
+
+  if (!file.buffer) {
+    return Promise.reject(
+      new Error(
+        'Avatar file buffer is missing'
+      )
+    );
+  }
+
+  return new Promise(
+    (
+      resolve,
+      reject
+    ) => {
+      const uploadStream =
+        cloudinary.uploader.upload_stream(
+          {
+            folder:
+              'shopnepal/avatars',
+
+            /*
+             * Each user receives a stable Cloudinary
+             * public ID. Uploading another profile
+             * picture overwrites the previous image.
+             */
+            public_id:
+              `user-${userId}`,
+
+            overwrite:
+              true,
+
+            resource_type:
+              'image',
+
+            transformation: [
+              {
+                width: 500,
+                height: 500,
+                crop: 'fill',
+                gravity: 'auto',
+              },
+
+              {
+                quality: 'auto',
+                fetch_format:
+                  'auto',
+              },
+            ],
+          },
+
+          (
+            error,
+            result
+          ) => {
+            if (error) {
+              reject(error);
+
+              return;
+            }
+
+            if (!result) {
+              reject(
+                new Error(
+                  'Cloudinary did not return an upload result'
+                )
+              );
+
+              return;
+            }
+
+            resolve(
+              result.secure_url
+            );
+          }
+        );
+
+      uploadStream.end(
+        file.buffer
+      );
+    }
+  );
+};
+
+/* ============================================================
+   REGISTER
+   POST /api/auth/register
+============================================================ */
 
 export const register =
   asyncHandler(
@@ -103,6 +216,7 @@ export const register =
               email:
                 normalizedEmail,
             },
+
             {
               phone:
                 normalizedPhone,
@@ -159,9 +273,9 @@ export const register =
     }
   );
 
-// ============================================================
-// LOGIN
-// ============================================================
+/* ============================================================
+   LOGIN
+============================================================ */
 
 export const login =
   asyncHandler(
@@ -255,9 +369,9 @@ export const login =
     }
   );
 
-// ============================================================
-// LOGOUT
-// ============================================================
+/* ============================================================
+   LOGOUT
+============================================================ */
 
 export const logout =
   asyncHandler(
@@ -287,9 +401,9 @@ export const logout =
     }
   );
 
-// ============================================================
-// GET CURRENT USER
-// ============================================================
+/* ============================================================
+   GET CURRENT USER
+============================================================ */
 
 export const getMe =
   asyncHandler(
@@ -323,10 +437,11 @@ export const getMe =
     }
   );
 
-// ============================================================
-// UPDATE PROFILE + AVATAR
-// PUT /api/auth/profile
-// ============================================================
+/* ============================================================
+   UPDATE PROFILE + CLOUDINARY AVATAR
+
+   PUT /api/auth/profile
+============================================================ */
 
 export const updateProfile =
   asyncHandler(
@@ -352,9 +467,9 @@ export const updateProfile =
         );
       }
 
-      // ======================================================
-      // NAME
-      // ======================================================
+      /* ======================================================
+         NAME
+      ====================================================== */
 
       if (
         name !==
@@ -376,9 +491,9 @@ export const updateProfile =
           cleanName;
       }
 
-      // ======================================================
-      // PHONE
-      // ======================================================
+      /* ======================================================
+         PHONE
+      ====================================================== */
 
       if (
         phone !==
@@ -411,9 +526,7 @@ export const updateProfile =
               },
             });
 
-          if (
-            phoneTaken
-          ) {
+          if (phoneTaken) {
             throw new ApiError(
               409,
               'Phone number already in use'
@@ -425,35 +538,47 @@ export const updateProfile =
         }
       }
 
-      // ======================================================
-      // AVATAR
-      // ======================================================
+      /* ======================================================
+         AVATAR
+      ====================================================== */
 
       if (req.file) {
-        const backendUrl =
-          (
-            process.env
-              .BACKEND_URL ||
-            `http://localhost:${
-              process.env
-                .PORT ||
-              5000
-            }`
-          ).replace(
-            /\/$/,
-            ''
+        try {
+          const avatarUrl =
+            await uploadAvatarToCloudinary(
+              req.file,
+
+              String(
+                user._id
+              )
+            );
+
+          /*
+           * Store the permanent HTTPS Cloudinary URL
+           * in MongoDB.
+           *
+           * Example:
+           *
+           * https://res.cloudinary.com/.../user-123.webp
+           */
+          user.avatar =
+            avatarUrl;
+        } catch (error) {
+          console.error(
+            'Cloudinary avatar upload failed:',
+            error
           );
 
-        user.avatar =
-          `${backendUrl}/uploads/avatars/${encodeURIComponent(
-            req.file
-              .filename
-          )}`;
+          throw new ApiError(
+            500,
+            'Unable to upload profile picture. Please try again.'
+          );
+        }
       }
 
-      // ======================================================
-      // SAVE
-      // ======================================================
+      /* ======================================================
+         SAVE
+      ====================================================== */
 
       await user.save();
 
@@ -471,9 +596,9 @@ export const updateProfile =
     }
   );
 
-// ============================================================
-// CHANGE PASSWORD
-// ============================================================
+/* ============================================================
+   CHANGE PASSWORD
+============================================================ */
 
 export const changePassword =
   asyncHandler(
@@ -557,9 +682,9 @@ export const changePassword =
     }
   );
 
-// ============================================================
-// FORGOT PASSWORD
-// ============================================================
+/* ============================================================
+   FORGOT PASSWORD
+============================================================ */
 
 export const forgotPassword =
   asyncHandler(
@@ -592,6 +717,11 @@ export const forgotPassword =
             normalizedEmail,
         });
 
+      /*
+       * Use the same response when an account does not
+       * exist so the endpoint does not reveal registered
+       * email addresses.
+       */
       const successMessage =
         'If an account with that email exists, a password reset link has been sent';
 
@@ -614,9 +744,14 @@ export const forgotPassword =
       });
 
       const frontendUrl =
-        process.env
-          .FRONTEND_URL ||
-        'http://localhost:5173';
+        (
+          process.env
+            .FRONTEND_URL ||
+          'http://localhost:5173'
+        ).replace(
+          /\/$/,
+          ''
+        );
 
       const resetUrl =
         `${frontendUrl}/reset-password/${resetToken}`;
@@ -645,15 +780,23 @@ ShopNepal
 
           html: `
 <!DOCTYPE html>
-<html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Reset your ShopNepal password</title>
+</head>
+
 <body style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,Helvetica,sans-serif;">
 
 <div style="max-width:600px;margin:30px auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e4e4e7;">
 
 <div style="background:#dc2626;padding:26px;text-align:center;">
+
 <h1 style="margin:0;color:#ffffff;font-size:28px;">
 ShopNepal
 </h1>
+
 </div>
 
 <div style="padding:32px;color:#27272a;">
@@ -662,7 +805,9 @@ ShopNepal
 Reset your password
 </h2>
 
-<p>Hello ${user.name},</p>
+<p>
+Hello ${user.name},
+</p>
 
 <p style="line-height:1.7;color:#52525b;">
 We received a request to reset the password for your ShopNepal account.
@@ -690,7 +835,7 @@ ${resetUrl}
 </div>
 
 <div style="background:#fafafa;text-align:center;padding:18px;color:#a1a1aa;font-size:12px;">
-ShopNepal • Nepal
+ShopNepal &bull; Nepal
 </div>
 
 </div>
@@ -700,6 +845,12 @@ ShopNepal • Nepal
           `.trim(),
         });
       } catch (error) {
+        /*
+         * Remove the reset token when email delivery
+         * fails so an unusable token is not left
+         * active in the database.
+         */
+
         user.passwordResetToken =
           undefined;
 
@@ -730,9 +881,9 @@ ShopNepal • Nepal
     }
   );
 
-// ============================================================
-// RESET PASSWORD
-// ============================================================
+/* ============================================================
+   RESET PASSWORD
+============================================================ */
 
 export const resetPassword =
   asyncHandler(
@@ -817,6 +968,9 @@ export const resetPassword =
       user.password =
         password;
 
+      /*
+       * A reset link must only work once.
+       */
       user.passwordResetToken =
         undefined;
 
